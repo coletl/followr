@@ -10,58 +10,55 @@
 #'
 #' @export
 #' @examples
-#' entities <- c(6404143,6480769)
-#' flw_get_contributions(entity = entities)
-flw_get_contributions <- function(state = NULL, year = NULL, entity = NULL,
-                                  api_key = NULL){
-  if(is.null(api_key)){
-    api_key <- Sys.getenv("follow_the_money_key")
-    if(nchar(api_key) == 0){
-      stop("No Follow the Money API key found in your environment. Either
-           specify one directly or use flw_set_api_key() to set the
-           environment variable.")
+
+flw_get_contributions <-
+  function (state = NULL, year = NULL, entity = NULL,
+            api_key = NULL, tidy = FALSE){
+    if (is.null(api_key)) {
+      api_key <- Sys.getenv("follow_the_money_key")
+      if (nchar(api_key) == 0) {
+        stop("No Follow the Money API key found in your environment. Either\n           specify one directly or use flw_set_api_key() to set the\n           environment variable.")
+      }
     }
+
+    url <- paste0("https://api.followthemoney.org/?mode=json",
+                  "&APIKey=", api_key)
+    url <- paste0(url, "&gro=c-t-eid,y,d-id")
+
+    if (!is.null(state)) {
+      url <- paste0(url, "&s=", paste0(state, collapse = ","))
+    }
+    if (!is.null(year)) {
+      url <- paste0(url, "&y=", paste0(year, collapse = ","))
+    }
+    if (!is.null(entity)) {
+      url <- paste0(url, "&c-t-eid=", paste0(entity, collapse = ","))
+    }
+
+    request <- httr::GET(url, httr::accept("application/json"))
+    content <- jsonlite::fromJSON(httr::content(request, "text",
+                                                encoding = "UTF-8"))
+    records <- content$records
+    contributions <- tibble::data_frame(candidate = records$Career_Summary$Career_Summary,
+                                        election_year = records$Election_Year$Election_Year,
+                                        state = records$State$State, contributors = records$Contributor$Contributor,
+                                        general_industry = records$General_Industry$General_Industry,
+                                        broad_sector = records$Broad_Sector$Broad_Sector, contribution_date = records$Date$Date,
+                                        contributor_city = records$City$City,
+                                        contributor_state = records$State$State, contributor_zip = records$Zip$Zip,
+                                        amount = records$Amount$Amount)
+
+    # Tidy up
+    if(tidy) {
+      require(dplyr)
+
+      contributions <-
+        contributions %>%
+        mutate(contribution_date = as.Date(contribution_date),
+               amount = as.double(amount)) %>%
+        mutate_if(is.character, function(val) ifelse(val == "", NA_character_, val))
+    }
+
+    return(contributions)
   }
 
-  # examples
-  api_key <- "9632361b2967ef9cab742fb80180d779"
-  #eid <- "http://api.followthemoney.org/?y=2016&s=RI&gro=d-id&APIKey=40dc88029cfee6ac7c70142f41f895b2&mode=json"
-  #cid <- "http://api.followthemoney.org/?c-t-id=163302&gro=d-id&APIKey=40dc88029cfee6ac7c70142f41f895b2&mode=json"
-  ids <- "http://api.followthemoney.org/?s=RI&y=2016&gro=y,c-t-id&APIKey=40dc88029cfee6ac7c70142f41f895b2&mode=json"
-  #working <- "https://api.followthemoney.org/?f-fc=2&c-t-eid=6404143&gro=y,d-eid,c-t-id&APIKey=40dc88029cfee6ac7c70142f41f895b2&mode=json&y=2016"
-
-  url <- paste0("https://api.followthemoney.org/?mode=json&gro=c-t-eid,y,d-id", "&APIKey=", api_key)
-
-  if(!is.null(state)){
-    url <- paste0(url, "&s=", paste0(state, collapse = ","))
-  }
-
-  if(!is.null(year)){
-    url <- paste0(url, "&y=", paste0(year,collapse = ","))
-  }
-
-  if(!is.null(entity)){
-    url <- paste0(url, "&c-t-eid=", paste0(entity, collapse = ","))
-
-  }
-
-  browser()
-
-  request<-httr::GET(url, httr::accept("application/json"))
-  content<-jsonlite::fromJSON(httr::content(request, "text", encoding = "UTF-8"))
-  records<-content$records #returns nested df's
-  contributions <- tibble::data_frame(candidate = records$Career_Summary$Career_Summary,
-                          election_year = records$Election_Year$Election_Year,
-                          state = records$State$State,
-                          contributors = records$Contributor$Contributor,
-                          general_industry = records$General_Industry$General_Industry,
-                          broad_sector = records$Broad_Sector$Broad_Sector,
-                          contribution_date = records$Date$Date,
-                          contributor_street = records$Street$id,
-                          contributor_city = records$City$City,
-                          contributor_state = records$State$State,
-                          contributor_zip = records$Zip$Zip,
-                          ammount = records$Amount$Amount)
-  #iterate through rest of the pages...
-  View(contributions)
-}

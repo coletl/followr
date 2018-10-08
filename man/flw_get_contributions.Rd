@@ -5,9 +5,12 @@
 \title{Get contribution data from Follow The Money}
 \usage{
 flw_get_contributions(state = NULL, year = NULL, entity = NULL,
-  api_key = NULL)
+  api_key = NULL, tidy = FALSE)
+}
+\arguments{
+\item{api_key}{}
 }
 \description{
 This package utilizes the Follow The Money API and returns a tidy data frame
-of state level political contributions
+of political contributions.
 }

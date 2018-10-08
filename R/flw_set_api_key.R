@@ -7,4 +7,6 @@ flw_set_api_key<-function(api_key){
   cat(paste0("follow_the_money_key=",api_key, "\n"),
       file=file.path(normalizePath("~/"), ".Renviron"),
       append=TRUE)
+  if(Sys.setenv(follow_the_money_key = api_key))
+    message("Successfully set API key. Please restart the R session to reload the environment file.\n")
 }
